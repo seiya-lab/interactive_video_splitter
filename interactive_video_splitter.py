@@ -4,24 +4,26 @@ import subprocess
 # FFmpegのインストールが必要です。インストールされていない場合は、以下のコマンドを使用してインストールしてください。
 # !pip install ffmpeg-python
 
-def split_video(input_file, timestamps, user_ids):
+def split_video(input_file, timestamps, user_id, folder_path):
     # ファイル名と拡張子を分割
     file_name, extension = os.path.splitext(input_file)
     
     # 分割後のファイル名を生成
     # ファイルの名前は、ユーザidと対応している
     folder_names = ["", "presentation", "question"]
-    output_files = [os.path.join(folder, folder + "_" + user_ids[i] + extension) for i, folder in enumerate(folder_names)]
-    output_files = [os.path.join(folder, folder + "_" + file_name + extension) for folder in folder_names]
+    output_files = [os.path.join(folder_path, folder, folder + "_" + user_id + extension) for i, folder in enumerate(folder_names)]
+    
+    # output_files内のファイルが既に作成されている場合は、処理をパスする
+    for output_file in output_files:
+        if os.path.isfile(output_file):
+            print(f"{output_file} already exists. Skipping...")
+            return
     
     # FFmpegを使用して動画を分割
     for i in range(2):
         command = ['ffmpeg', '-i', input_file, '-ss', timestamps[i], '-to', timestamps[i+1], '-c', 'copy', output_files[i+1]]
         subprocess.run(command)
         print(f"Split {input_file} into {output_files[i+1]}")
-    
-    # 1つ目のファイルは元ファイルをそのまま使用
-    output_files[0] = input_file
     
     print("Splitting completed successfully.")
 
@@ -45,7 +47,7 @@ def interactive_video_splitting(folder, user_ids):
         print("No MP4 files found in the specified folder.")
         return
     
-    for file in file_list:
+    for file, user_id in zip(file_list, user_ids):
         file_path = os.path.join(folder, file)
         timestamps = []
         
@@ -57,8 +59,13 @@ def interactive_video_splitting(folder, user_ids):
             timestamp = input(f"Enter the timestamp (mm:ss) to split {file} (part {i+1}): ")
             timestamps.append(timestamp)
         
+        
+        # 最後のタイムスタンプを追加
+        end_time = input(f"Enter the end timestamp (mm:ss) to split {file} (part 3): ")
+        timestamps.append(end_time)
+        
         # 3つに分割
-        split_video(file_path, timestamps)
+        split_video(file_path, timestamps, user_id, folder_path)
     
     print("All files processed successfully.")
 
